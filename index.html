@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gamma / Max-Pain Analyzer</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #2f81f7;
+    --buy: #3fb950; --sell: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg); color: var(--text); padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  textarea {
+    width: 100%; height: 280px; resize: vertical;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .actions { margin: 14px 0; display: flex; gap: 10px; align-items: center; }
+  button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .out-head { display: flex; align-items: center; justify-content: space-between; }
+  .copy-btn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; margin-bottom: 6px;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+  .copy-btn.ok { color: var(--buy); border-color: var(--buy); }
+  .out {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; min-height: 280px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 15px; line-height: 1.9; white-space: pre-wrap;
+  }
+  .out .buy  { color: var(--buy); font-weight: 600; }
+  .out .sell { color: var(--sell); font-weight: 600; }
+  .out .bias { color: var(--accent); font-weight: 700; margin-top: 8px; display: inline-block; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 12px; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .cfg { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+  .cfg-row {
+    display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+  }
+  @media (max-width: 640px) { .cfg-row { grid-template-columns: 1fr; gap: 6px; } }
+  .cfg-head { font-size: 12.5px; color: var(--text); font-weight: 600; margin: 12px 0 2px; }
+  .cfg-ctrl { flex-wrap: wrap; }
+  .cfg-ctrl { display: flex; align-items: center; gap: 8px; }
+  .cfg-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--accent); font-weight: 600; }
+  .cfg-row input { width: 64px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; font-size: 13px; }
+  .cfg-row input:focus { outline: none; border-color: var(--accent); }
+  .cfg .unit { color: var(--muted); font-size: 11px; }
+  .cfg-desc { font-size: 12.5px; line-height: 1.6; color: var(--text); }
+  .cfg-desc b { color: var(--text); }
+  .cfg-desc i { color: var(--muted); font-style: italic; }
+  .cfg-desc .hint { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+  .guide { font-size: 12.5px; line-height: 1.7; color: var(--muted); margin: 12px 0; }
+  .guide p { margin: 6px 0; }
+  .guide b { color: var(--text); }
+  .guide ul { margin: 6px 0; padding-left: 20px; }
+  .guide code, .cfg-desc code, summary code {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 5px; font-size: 12px; color: var(--buy);
+  }
+</style>
+</head>
+<body>
+  <h1>📊 Gamma / Max-Pain Analyzer</h1>
+  <div class="sub">Dán feed vào ô bên trái → nhận vùng BUY / SELL theo ưu tiên + BIAS.</div>
+
+  <div class="grid">
+    <div>
+      <label for="in">INPUT</label>
+      <textarea id="in" placeholder="🕒 08:48 29-05 GMT+7 💰 ATM: 4,531.1 | CFD: 4,502.8 📌 OG5K6 (Weekly) MP:4,500.0 ..."></textarea>
+      <div class="actions">
+        <button id="run">Phân tích ▶</button>
+        <button id="sample" class="ghost">Dữ liệu mẫu</button>
+      </div>
+    </div>
+    <div>
+      <div class="out-head">
+        <label for="out">OUTPUT</label>
+        <button id="copyOut" class="copy-btn">📋 Copy</button>
+      </div>
+      <div id="out" class="out"></div>
+      <div id="meta" class="meta"></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>⚙️ Tham số (tinh chỉnh) — bấm để mở hướng dẫn</summary>
+
+    <div class="guide">
+      <p>Công cụ vẽ <b>3 vùng BUY</b> (dưới giá) và <b>3 vùng SELL</b> (trên giá) theo độ ưu tiên,
+      cùng dòng <b>BIAS</b>. Mỗi tham số dưới đây điều khiển một bước trong thuật toán.
+      Sửa giá trị → bấm <b>Phân tích ▶</b> để xem lại. Muốn về mặc định thì tải lại trang (F5).</p>
+    </div>
+
+    <div class="cfg">
+      <div class="cfg-head">📥 Thang BUY — offset tính từ <code>pivot = (CFD + MaxPain gần nhất)/2</code>. Mỗi vùng = [lệch đáy, lệch đỉnh], số âm = dưới pivot.</div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">buyHigh</span>
+          <input type="number" id="cfg-buyHigh-lo" value="-6"><span class="unit">đáy</span>
+          <input type="number" id="cfg-buyHigh-hi" value="4"><span class="unit">đỉnh</span></div>
+        <div class="cfg-desc">
+          <b>Vùng BUY ưu tiên cao.</b> Ôm quanh giá hiện tại — vùng mua gần & mạnh nhất.
+          <span class="hint">Mặc định [-6, 4] → bao quanh pivot.</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">buyMid</span>
+          <input type="number" id="cfg-buyMid-lo" value="-19"><span class="unit">đáy</span>
+          <input type="number" id="cfg-buyMid-hi" value="-9"><span class="unit">đỉnh</span></div>
+        <div class="cfg-desc">
+          <b>Vùng BUY ưu tiên trung bình.</b> Lùi xuống ~15 điểm dưới giá.
+          <span class="hint">Đáy/đỉnh càng âm → vùng càng xa giá hiện tại.</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">buyLow</span>
+          <input type="number" id="cfg-buyLow-lo" value="-38"><span class="unit">đáy</span>
+          <input type="number" id="cfg-buyLow-hi" value="-25"><span class="unit">đỉnh</span></div>
+        <div class="cfg-desc">
+          <b>Vùng BUY ưu tiên thấp.</b> Lùi sâu nhất (~35 điểm) — vùng mua "bắt đáy".
+        </div>
+      </div>
+
+      <div class="cfg-head">📤 Thang SELL — neo theo các cụm kháng cự phía trên giá.</div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">sellWidths</span>
+          <input type="number" id="cfg-sellW-0" value="10"><span class="unit">HIGH</span>
+          <input type="number" id="cfg-sellW-1" value="13"><span class="unit">MID</span>
+          <input type="number" id="cfg-sellW-2" value="15"><span class="unit">LOW</span></div>
+        <div class="cfg-desc">
+          <b>Độ rộng vùng SELL.</b> Bề rộng (điểm) của vùng HIGH / MID / LOW. Vùng xa hơn nên rộng hơn (kém chắc chắn).
+          <span class="hint">Mặc định 10 / 13 / 15.</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">clusterGap</span>
+          <input type="number" id="cfg-clusterGap" value="12"><span class="unit">điểm</span></div>
+        <div class="cfg-desc">
+          <b>Gộp cụm kháng cự (SELL).</b> Hai mức giá cách nhau ≤ giá trị này được coi là <i>cùng một vùng</i>.
+          Tăng → ít vùng nhưng rộng hơn; giảm → nhiều vùng nhỏ, sát nhau.
+          <span class="hint">Thường để 10–15.</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">sellMinGap</span>
+          <input type="number" id="cfg-sellMinGap" value="10"><span class="unit">điểm</span></div>
+        <div class="cfg-desc">
+          <b>Khoảng cách tối thiểu của kháng cự so với giá.</b> Mức nằm trong khoảng này bị bỏ qua —
+          để loại "pin" Max-Pain sát giá (không phải vùng SELL thật).
+          <span class="hint">Tăng nếu vùng SELL HIGH bị dính sát giá; giảm nếu bỏ sót kháng cự gần.</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">sellTopPad</span>
+          <input type="number" id="cfg-sellTopPad" value="0"><span class="unit">điểm</span></div>
+        <div class="cfg-desc">
+          <b>Đẩy đỉnh vùng SELL lên trên mức kháng cự.</b> Mặc định 0 = đỉnh vùng đúng bằng mức kháng cự.
+          Đặt >0 nếu muốn đặt lệnh cao hơn kháng cự một chút (đề phòng vượt đỉnh).
+          <span class="hint">Thường 0–5.</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">maxZones</span>
+          <input type="number" id="cfg-maxZones" value="3"><span class="unit">vùng</span></div>
+        <div class="cfg-desc">
+          <b>Số vùng mỗi chiều.</b> 3 = HIGH / MID / LOW (mặc định). Giảm còn 1–2 nếu chỉ cần vùng gần nhất.
+          <span class="hint">Tối đa 3 (chỉ có 3 nhãn ưu tiên).</span>
+        </div>
+      </div>
+
+      <div class="cfg-row">
+        <div class="cfg-ctrl"><span class="cfg-name">biasSlopeThld</span>
+          <input type="number" id="cfg-biasSlopeThld" value="5"><span class="unit">điểm</span></div>
+        <div class="cfg-desc">
+          <b>Ngưỡng lệch BIAS.</b> So sánh Max-Pain kỳ hạn xa với kỳ hạn gần. Nếu chênh lệch vượt ngưỡng này,
+          BIAS lệch 1 nấc (↑ = bullish, ↓ = bearish). Tăng → BIAS "lì" hơn; giảm → nhạy hơn.
+          <span class="hint">Thường 3–8.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide">
+      <p>Tất cả tham số đều chỉnh ngay tại đây. Sửa xong bấm <b>Phân tích ▶</b>; tải lại trang (F5) để về mặc định.</p>
+    </div>
+  </details>
+
+<!-- Logic phân tích dùng chung — cùng file với CLI & API -->
+<script src="analyzer.js"></script>
+<script>
+// ===========================================================================
+//  UI wiring — toàn bộ thuật toán nằm trong TradeAnalyzer (analyzer.js)
+// ===========================================================================
+const DEFAULT_CONFIG = TradeAnalyzer.DEFAULT_CONFIG;
+const fmt = (n) => Math.round(n).toString();
+const SAMPLE = "🕒 08:48 29-05 GMT+7 💰 ATM: 4,531.1 | CFD: 4,502.8 📌 OG5K6 (Weekly) MP:4,500.0 POC:5,000.0 CBE:4,745.0 PBE:4,395.0 🐋 Sup:4,400.0 Res:5,000.0 🐂$15.5M 🐻$17.3M 📌 G1MM6 (3DTE) MP:4,495.0 POC:4,420.0 CBE:4,674.2 PBE:4,346.9 🐋 Sup:4,425.0 Res:4,700.0 🐂$5.0M 🐻$4.5M 📌 G1TM6 (4DTE) MP:4,525.0 POC:4,520.0 CBE:4,658.2 PBE:4,401.4 🐋 Sup:4,525.0 Res:4,550.0 🐂$2.0M 🐻$1.9M 📌 G1WM6 (5DTE) MP:4,575.0 POC:4,420.0 CBE:4,643.5 PBE:4,365.5 🐋 Sup:4,425.0 Res:4,625.0 🐂$1.5M 🐻$2.2M 📌 G1RM6 (6DTE) MP:4,575.0 POC:4,580.0 CBE:4,691.2 PBE:4,342.7 🐋 Sup:4,275.0 Res:4,775.0 🐂$2.7M 🐻$2.9M 📌 OG1M6 (Weekly) MP:4,550.0 POC:4,550.0 CBE:4,796.7 PBE:4,357.1 🐋 Sup:4,350.0 Res:4,850.0 🐂$6.2M 🐻$4.3M 📌 G2MM6 (10DTE) MP:4,525.0 POC:4,800.0 CBE:4,840.8 PBE:4,372.7 🐋 Sup:4,425.0 Res:4,800.0 🐂$1.1M 🐻$2.6M 📌 G2TM6 (11DTE) MP:4,500.0 POC:4,450.0 CBE:4,635.9 PBE:4,375.3 🐋 Sup:4,400.0 Res:4,725.0 🐂$1.2M 🐻$818K 📌 G2WM6 (12DTE) MP:4,500.0 POC:4,450.0 CBE:4,706.9 PBE:4,348.9 🐋 Sup:4,300.0 Res:4,900.0 🐂$234K 🐻$1.1M";
+
+function numId(id, fallback) {
+  const el = document.getElementById(id);
+  return el && el.value !== '' ? parseFloat(el.value) : fallback;
+}
+function readCfg() {
+  const c = { ...DEFAULT_CONFIG };
+  // tham số vô hướng
+  for (const k of ['clusterGap', 'sellMinGap', 'sellTopPad', 'maxZones', 'biasSlopeThld']) {
+    c[k] = numId('cfg-' + k, c[k]);
+  }
+  // tham số dạng mảng
+  c.buyHigh = [numId('cfg-buyHigh-lo', c.buyHigh[0]), numId('cfg-buyHigh-hi', c.buyHigh[1])];
+  c.buyMid  = [numId('cfg-buyMid-lo',  c.buyMid[0]),  numId('cfg-buyMid-hi',  c.buyMid[1])];
+  c.buyLow  = [numId('cfg-buyLow-lo',  c.buyLow[0]),  numId('cfg-buyLow-hi',  c.buyLow[1])];
+  c.sellWidths = [numId('cfg-sellW-0', c.sellWidths[0]), numId('cfg-sellW-1', c.sellWidths[1]), numId('cfg-sellW-2', c.sellWidths[2])];
+  return c;
+}
+
+function run() {
+  const text = document.getElementById('in').value;
+  const out = document.getElementById('out');
+  const meta = document.getElementById('meta');
+  if (!text.trim()) { out.innerHTML = '<span style="color:#8b949e">Chưa có input.</span>'; meta.textContent = ''; return; }
+
+  const CFG = readCfg();
+  const r = TradeAnalyzer.analyze(text, CFG);
+  if (r.error) {
+    out.innerHTML = `<span style="color:#f85149">${r.error}</span>`;
+    meta.textContent = ''; return;
+  }
+
+  let html = '';
+  for (const z of r.buy)  html += `<span class="buy">BUY ${fmt(z.lo)}–${fmt(z.hi)} (${z.priority} PRIORITY)</span>\n`;
+  html += '\n';
+  for (const z of r.sell) html += `<span class="sell">SELL ${fmt(z.lo)}–${fmt(z.hi)} (${z.priority} PRIORITY)</span>\n`;
+  html += '\n';
+  html += `<span class="bias">BIAS: ${r.bias.text}</span>`;
+  out.innerHTML = html;
+
+  const b = r.bias;
+  meta.textContent = `Giá tham chiếu CFD: ${r.price} • ${r.blocks.length} kỳ hạn • 🐂 $${(b.bull/1e6).toFixed(1)}M / 🐻 $${(b.bear/1e6).toFixed(1)}M (bull ${(b.ratio*100).toFixed(0)}%)`;
+}
+
+document.getElementById('run').addEventListener('click', run);
+document.getElementById('sample').addEventListener('click', () => { document.getElementById('in').value = SAMPLE; run(); });
+document.getElementById('copyOut').addEventListener('click', (e) => {
+  const btn = e.currentTarget;
+  navigator.clipboard.writeText(document.getElementById('out').innerText || '').then(() => {
+    btn.textContent = '✅ Đã copy';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = '📋 Copy'; btn.classList.remove('ok'); }, 1500);
+  });
+});
+document.getElementById('in').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();
+});
+// chạy thử với dữ liệu mẫu khi mở trang
+document.getElementById('in').value = SAMPLE;
+run();
+</script>
+</body>
+</html>
